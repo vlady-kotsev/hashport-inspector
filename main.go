@@ -85,12 +85,31 @@ outer:
 		}
 	}
 	fmt.Printf("==== Done ===\n\n")
-	// for _, txID := range cryptoTransfers {
-	// 	fmt.Println(txID)
-	// }
-	// for _, txID := range cryptoBurnsIDs {
-	// 	fmt.Println(txID)
-	// }
+	totalCT := int64(0)
+	cryptoTransferMap := make(map[int64]int32)
+	for _, tx := range cryptoTransfers {
+		_, ok := cryptoTransferMap[tx.Amount]
+		if !ok {
+			cryptoTransferMap[tx.Amount] = 1
+		} else {
+			cryptoTransferMap[tx.Amount]++
+		}
+		totalCT += tx.Amount
+	}
+
+	totalMB := int64(0)
+	burnMintMap := make(map[int64]int32)
+	for _, tx := range cryptoBurnsOrMints {
+		_, ok := cryptoTransferMap[tx.Amount]
+		if !ok {
+			burnMintMap[tx.Amount] = 1
+		} else {
+			burnMintMap[tx.Amount]++
+		}
+		totalMB += tx.Amount
+	}
+
+	fmt.Printf("Total transfers: %d, Total %ss: %d\n", totalCT, *mode, totalMB)
 	var diffs []FoundTransaction
 	if *mode == BurnMode {
 		diffs = findDiff(cryptoTransfers, cryptoBurnsOrMints)
@@ -104,8 +123,24 @@ outer:
 		fmt.Println(diff.TransactionID)
 		totalAmount += diff.Amount
 	}
-	fmt.Printf("Crypto Transfers: %d Crypto burns/mints: %d\n", len(cryptoTransfers), len(cryptoBurnsOrMints))
+
+	fmt.Printf("Crypto Transfers: %d Crypto %ss: %d\n", len(cryptoTransfers), *mode, len(cryptoBurnsOrMints))
 	fmt.Printf("Total Amount: %d\n", totalAmount)
+	if *mode == BurnMode {
+		for amount, count := range cryptoTransferMap {
+			if burnMintMap[amount] != count {
+				fmt.Printf("Count: %d CryptoTransferAmount: %d BurnAmount: %d \n", count, amount, burnMintMap[amount])
+			}
+		}
+	}
+
+	if *mode == MintMode {
+		for amount, count := range burnMintMap {
+			if cryptoTransferMap[amount] != count {
+				fmt.Printf("Count: %d MintAmount: %d CryptoTransferAmount: %d \n", count, amount, cryptoTransferMap[amount])
+			}
+		}
+	}
 }
 
 func getTransactions(url, baseUrl string, errorChan chan<- error, txsChan chan<- Transaction) {
